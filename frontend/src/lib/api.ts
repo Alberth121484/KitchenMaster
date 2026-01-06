@@ -8,7 +8,7 @@ function getApiUrl(): string {
     
     // Producción: cocinas.alchemycode.dev -> api.cocinas.alchemycode.dev
     if (hostname !== "localhost" && hostname !== "127.0.0.1") {
-      return `https://api.${hostname}`;
+      return `https://${process.env.NEXT_PUBLIC_API_DOMAIN}.${hostname}`;
     }
   }
   
