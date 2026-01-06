@@ -1,5 +1,5 @@
-import google.generativeai as genai
-from google.generativeai.types import HarmCategory, HarmBlockThreshold
+from google import genai
+from google.genai import types
 import base64
 import io
 from typing import Optional, Dict, Any
@@ -9,15 +9,14 @@ from app.config import get_settings
 
 settings = get_settings()
 
-# Configure Gemini
-genai.configure(api_key=settings.google_api_key)
+# Initialize Gemini client
+client = genai.Client(api_key=settings.google_api_key)
 
 
 class GeminiImageGenerator:
     """Wrapper for Gemini image generation capabilities."""
     
     def __init__(self):
-        self.model = genai.GenerativeModel(settings.gemini_model)
         self.imagen_model = "imagen-3.0-generate-002"
     
     async def generate_image(
@@ -36,9 +35,6 @@ class GeminiImageGenerator:
         - error: error message if failed
         """
         try:
-            # Use Imagen 3 for image generation
-            imagen = genai.ImageGenerationModel(self.imagen_model)
-            
             # Enhance prompt for kitchen design
             enhanced_prompt = f"""Professional architectural interior photography of: {prompt}
 
@@ -47,20 +43,28 @@ Lighting: Natural daylight with subtle artificial accent lighting
 Camera: Wide-angle lens, eye-level perspective
 Details: Sharp focus on materials and textures, realistic reflections on surfaces"""
 
-            response = imagen.generate_images(
-                prompt=enhanced_prompt,
+            config = types.GenerateImagesConfig(
                 number_of_images=num_images,
                 aspect_ratio=aspect_ratio,
                 safety_filter_level="block_only_high",
-                person_generation="dont_allow"
+                person_generation="dont_allow",
+                output_mime_type="image/png"
+            )
+            
+            if negative_prompt:
+                config.negative_prompt = negative_prompt
+
+            response = client.models.generate_images(
+                model=self.imagen_model,
+                prompt=enhanced_prompt,
+                config=config
             )
             
             images = []
-            for image in response.images:
+            for gen_image in response.generated_images:
                 # Convert to base64
-                img_bytes = image._pil_image
                 buffered = io.BytesIO()
-                img_bytes.save(buffered, format="PNG")
+                gen_image.image.save(buffered, format="PNG")
                 img_base64 = base64.b64encode(buffered.getvalue()).decode()
                 images.append(img_base64)
             
@@ -97,13 +101,13 @@ Details: Sharp focus on materials and textures, realistic reflections on surface
             
             # For actual editing, we'll use Gemini's multimodal capabilities
             # to understand the image and generate a new one based on edits
-            vision_model = genai.GenerativeModel('gemini-2.0-flash')
-            
-            # Analyze current image
-            analysis_response = vision_model.generate_content([
-                "Describe this kitchen design in detail, including layout, materials, colors, and style. Be specific about dimensions and features visible.",
-                img
-            ])
+            analysis_response = client.models.generate_content(
+                model='gemini-2.0-flash',
+                contents=[
+                    "Describe this kitchen design in detail, including layout, materials, colors, and style. Be specific about dimensions and features visible.",
+                    img
+                ]
+            )
             
             current_description = analysis_response.text
             
@@ -131,29 +135,27 @@ class GeminiReasoner:
     """Wrapper for Gemini reasoning/chat capabilities."""
     
     def __init__(self, system_prompt: str):
-        self.model = genai.GenerativeModel(
-            model_name=settings.gemini_model,
-            system_instruction=system_prompt,
-            safety_settings={
-                HarmCategory.HARM_CATEGORY_HARASSMENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                HarmCategory.HARM_CATEGORY_HATE_SPEECH: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-                HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT: HarmBlockThreshold.BLOCK_ONLY_HIGH,
-            }
-        )
+        self.system_prompt = system_prompt
+        self.model_name = settings.gemini_model
         self.chat = None
     
     def start_chat(self, history: list = None):
         """Initialize or reset chat with history."""
-        formatted_history = []
+        config = types.GenerateContentConfig(
+            system_instruction=self.system_prompt,
+            temperature=0.7
+        )
+        
+        self.chat = client.chats.create(
+            model=self.model_name,
+            config=config
+        )
+        
+        # Replay history if provided
         if history:
             for msg in history:
-                formatted_history.append({
-                    "role": "user" if msg["role"] == "user" else "model",
-                    "parts": [msg["content"]]
-                })
-        
-        self.chat = self.model.start_chat(history=formatted_history)
+                if msg["role"] == "user":
+                    self.chat.send_message(msg["content"])
     
     async def send_message(self, message: str) -> str:
         """Send message and get response."""
