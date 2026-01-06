@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from app.config import get_settings
@@ -41,6 +42,8 @@ async def init_db(max_retries: int = 30, retry_delay: int = 2):
     for attempt in range(max_retries):
         try:
             async with engine.begin() as conn:
+                # Enable pgvector extension
+                await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
                 await conn.run_sync(Base.metadata.create_all)
             logger.info("Database connection established successfully")
             return

@@ -77,7 +77,6 @@ services:
       - TZ=America/Mexico_City
     volumes:
       - kitchen_postgres_data:/var/lib/postgresql/data
-      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - backend
     deploy:
