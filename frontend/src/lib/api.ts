@@ -1,8 +1,19 @@
 import axios, { AxiosError, AxiosInstance } from "axios";
 
-// Usa API_DOMAIN del .env y agrega https:// al inicio
-const API_DOMAIN = process.env.NEXT_PUBLIC_API_DOMAIN || "localhost:8000";
-const API_URL = API_DOMAIN.startsWith("http") ? API_DOMAIN : `https://${API_DOMAIN}`;
+// Detecta API URL en runtime basándose en el hostname del navegador
+function getApiUrl(): string {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    // Producción: cocinas.alchemycode.dev -> api.cocinas.alchemycode.dev
+    if (hostname !== "localhost" && hostname !== "127.0.0.1") {
+      return `https://api.cocinas.${hostname}`;
+    }
+  }
+  // Desarrollo local
+  return "http://localhost:8000";
+}
+
+const API_URL = getApiUrl();
 
 export interface User {
   id: string;
