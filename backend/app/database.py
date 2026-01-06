@@ -1,7 +1,10 @@
+import asyncio
+import logging
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
 from app.config import get_settings
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
 
 engine = create_async_engine(
@@ -33,6 +36,21 @@ async def get_db() -> AsyncSession:
             await session.close()
 
 
-async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+async def init_db(max_retries: int = 30, retry_delay: int = 2):
+    """Initialize database with retry logic for Docker Swarm."""
+    for attempt in range(max_retries):
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+            logger.info("Database connection established successfully")
+            return
+        except Exception as e:
+            if attempt < max_retries - 1:
+                logger.warning(
+                    f"Database connection attempt {attempt + 1}/{max_retries} failed: {e}. "
+                    f"Retrying in {retry_delay}s..."
+                )
+                await asyncio.sleep(retry_delay)
+            else:
+                logger.error(f"Failed to connect to database after {max_retries} attempts")
+                raise
