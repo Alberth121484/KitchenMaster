@@ -1,24 +1,8 @@
 import axios, { AxiosError, AxiosInstance } from "axios";
 
-// Detecta API URL en runtime basándose en el hostname actual
-function getApiUrl(): string {
-  // En el navegador, derivar del hostname actual
-  if (typeof window !== "undefined") {
-    const hostname = window.location.hostname;
-    
-    // Producción: cocinas.alchemycode.dev -> api.cocinas.alchemycode.dev
-    if (hostname !== "localhost" && hostname !== "127.0.0.1") {
-      return `https://${process.env.NEXT_PUBLIC_API_DOMAIN}.${hostname}`;
-    }
-  }
-  
-  // Desarrollo local o SSR
-  return process.env.NEXT_PUBLIC_API_DOMAIN 
-    ? `https://${process.env.NEXT_PUBLIC_API_DOMAIN}`
-    : "http://localhost:8000";
-}
-
-const API_URL = getApiUrl();
+// Usa API_DOMAIN del .env y agrega https:// al inicio
+const API_DOMAIN = process.env.NEXT_PUBLIC_API_DOMAIN || "localhost:8000";
+const API_URL = API_DOMAIN.startsWith("http") ? API_DOMAIN : `https://${API_DOMAIN}`;
 
 export interface User {
   id: string;
