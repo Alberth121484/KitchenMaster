@@ -46,7 +46,7 @@ class Artifact(Base):
     content = Column(Text)
     image_url = Column(Text)
     image_data = Column(LargeBinary)
-    metadata = Column(JSONB, default={})
+    artifact_metadata = Column(JSONB, default={})
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # Relationships

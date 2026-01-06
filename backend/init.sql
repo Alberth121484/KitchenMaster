@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS artifacts (
     content TEXT,
     image_url TEXT,
     image_data BYTEA,
-    metadata JSONB DEFAULT '{}',
+    artifact_metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
