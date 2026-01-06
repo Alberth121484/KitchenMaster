@@ -1,6 +1,8 @@
 import axios, { AxiosError, AxiosInstance } from "axios";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Usa API_DOMAIN del .env y agrega https:// al inicio
+const API_DOMAIN = process.env.NEXT_PUBLIC_API_DOMAIN || "localhost:8000";
+const API_URL = API_DOMAIN.startsWith("http") ? API_DOMAIN : `https://${API_DOMAIN}`;
 
 export interface User {
   id: string;
